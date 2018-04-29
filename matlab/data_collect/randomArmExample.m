@@ -1,19 +1,16 @@
 % planar arm obstacle avoidance with reaching a goal
-% @author Jing Dong
-% @date Nov 23, 2015
 
 close all
-clear all
+% clear all
 % clearvars -except seed
 
 if ~exist('seed')
-    seed = 9;
+    seed = 123;
 end
 
 import gtsam.*
 import gpmp2.*
 addpath('/usr/local/gtsam_toolbox/');
-
 
 rng(seed);
 
@@ -24,31 +21,11 @@ date = datestr(now,'mmm-dd-yy_HH:MM:SS');
 data_path = fullfile(pwd,'data',date);
 mkdir(data_path);
 
-iter = 0;
-while iter < 40000
-    %% small dataset
-    generate = true;
-    while generate
-        [dataset, goal] = generateRandom2D(map_dim);
-        rows = dataset.rows;
-        cols = dataset.cols;
-        if all(dataset.map(rows/2+1, cols/2+1:end) == 0)
-            generate = false;
-        end
-    end
-    origin_point2 = Point2(dataset.origin_x, dataset.origin_y);
+%% Settings
 
-    % signed distance field
-    field = signedDistanceField2D(dataset.map, cell_size);
-    sdf = PlanarSDF(origin_point2, cell_size, field);
+    % Number of planning attempts
+    num_plan = 40000;
 
-    % plot sdf
-    % figure(2)
-    % plotSignedDistanceField2D(field, dataset.origin_x, dataset.origin_y, dataset.cell_size);
-    % title('Signed Distance Field')
-
-
-    %% settings
     total_time_sec = 20.0;
     total_time_step = 100;
     total_check_step = 100;
@@ -58,17 +35,7 @@ while iter < 40000
     % use GP interpolation
     use_GP_inter = true;
 
-    % abstract arm
-%     a = [5, 5, 5]';
-%     d = [0, 0, 0]';
-%     alpha = [0, 0, 0]';
-%     arm = Arm(3, a, alpha, d);
-
-    % arm model
-    arm = generateArm('SimpleThreeLinksArm');
-
     % GP
-    % Qc = eye(3);
     Qc = 0.01*eye(3);
     Qc_model = noiseModel.Gaussian.Covariance(Qc); 
 
@@ -79,38 +46,76 @@ while iter < 40000
     % prior model on start conf/velocity
     pose_fix = noiseModel.Isotropic.Sigma(3, 0.0001);
     vel_fix = noiseModel.Isotropic.Sigma(3, 0.0001);
-
-    % final goal point and noise model
-    goal_point3 = Point3([goal; 0]);
+    
+    % final goal noise model
     goal_fix = noiseModel.Isotropic.Sigma(3, 0.0001);
-
-    % start and end conf
-    start_conf = [0, 0, 0]';
+    
+    % start veolicty
     start_vel = [0, 0, 0]';
-
-    % end conf initial values
-    %end_conf_init = [0, 0, 0]';
-    %end_conf_init = [pi/2, 0, 0]'; % CCW
-    %end_conf_init = [-3*pi/2, 0, 0]'; % CW
-    end_conf_inits = [pi/2, 0, 0;      % CCW
-                      -3*pi/2, 0, 0]'; % CW
-
+    
     % end velocity
     end_vel = [0, 0, 0]';
     %avg_vel = ((end_conf_init - start_conf) / total_time_step) / delta_t;
-
+    
     % plot settings
     plot_smooth = false;
     plot_inter = 10;
 
-    % plot start configuration / goal point
-%     figure(1), hold on
-%     plotEvidenceMap2D(dataset.map, dataset.origin_x, dataset.origin_y, cell_size);
-%     plotPlanarArm(arm.fk_model(), start_conf, 'b', 2);
-%     plot(goal(1), goal(2), 'r*');
-%     title('Layout')
-%     hold off
+%% Generate arm model
 
+    arm = generateArm('SimpleThreeLinksArm');
+
+%% Main loop
+    
+iter = 0;
+while iter < num_plan
+        
+    % start and end conf
+    jt2_min=-0.5*pi; jt2_max= 0.5*pi; 
+    jt3_min=-0.5*pi; jt3_max= 0.5*pi; 
+    
+    start_conf = [rand*2*pi, ...                         
+                      jt2_min+rand*(jt2_max-jt2_min),...
+                      jt3_min+rand*(jt3_max-jt3_min)]' ;
+    
+    end_conf_inits = repmat([rand*2*pi, ...                          % CCW
+                            jt2_min+rand*(jt2_max-jt2_min),...
+                            jt3_min+rand*(jt3_max-jt3_min)],...
+                            2,1);      
+                        
+    end_conf_inits(2,1) = end_conf_inits(1,1) - 2*pi;                 % CW
+    end_conf_inits = end_conf_inits';
+    
+    start_jts_xy = arm.fk_model().forwardKinematicsPosition(start_conf);
+    goal_jts_xy = arm.fk_model().forwardKinematicsPosition(end_conf_inits(:,1));
+    goal = goal_jts_xy(:,end);
+    
+    % small dataset
+    dataset = generateRandom2D(map_dim, start_jts_xy, goal_jts_xy);
+    rows = dataset.rows;
+    cols = dataset.cols;
+    cell_size = dataset.cell_size;
+    
+    % Create origin and goal point objects
+    origin_point2 = Point2(dataset.origin_x, dataset.origin_y);
+    goal_point3 = Point3([goal; 0]);
+    
+    % signed distance field
+    field = signedDistanceField2D(dataset.map, cell_size);
+    sdf = PlanarSDF(origin_point2, cell_size, field);
+
+    % plot sdf
+    % figure(2)
+    % plotSignedDistanceField2D(field, dataset.origin_x, dataset.origin_y, dataset.cell_size);
+    % title('Signed Distance Field')
+    
+    % plot start configuration / goal point
+    figure(1), hold on
+    plotEvidenceMap2D(dataset.map, dataset.origin_x, dataset.origin_y, dataset.cell_size);
+    plotPlanarArm(arm.fk_model(), start_conf, 'b', 2);
+    plot(goal(1), goal(2), 'r*');
+    title('Layout')
+    hold off
 
 
     %% init optimization
@@ -244,22 +249,21 @@ while iter < 40000
         end
     end
 
-    
-    % Initialize figures
-    figure(4)
-    set(gca,'Position',[0 0 1 1]);
-    set(gcf,'Position',[500 500 map_dim(1) map_dim(2)]);
-    a(1) = gca;
-    
-    figure(5)
-    set(gca,'Position',[0 0 1 1]);
-    set(gcf,'Position',[500+map_dim(1) 500 map_dim(1) map_dim(2)]);
-    set(gca,'XColor','none');
-    set(gca,'YColor','none');
-    a(2) = gca;
-    linkaxes(a, 'xy');
-    
     if CollisionCost2DArm(arm, sdf, result, traj_settings) == 0
+        
+        % Initialize figures
+        figure(4)
+        set(gca,'Position',[0 0 1 1]);
+        set(gcf,'Position',[500 500 map_dim(1) map_dim(2)]);
+        a(1) = gca;
+
+        figure(5)
+        set(gca,'Position',[0 0 1 1]);
+        set(gcf,'Position',[500+map_dim(1) 500 map_dim(1) map_dim(2)]);
+        set(gca,'XColor','none');
+        set(gca,'YColor','none');
+        a(2) = gca;
+        linkaxes(a, 'xy');
         
         iter = iter + 1;
         
