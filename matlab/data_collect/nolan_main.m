@@ -33,7 +33,11 @@ while iter < 40000
         cols = dataset.cols;
         cell_size = dataset.cell_size;
         % YOUR CODE HERE
-        if all(dataset.map(rows/2+1, cols/2+1:end) == 0)
+%         if all(dataset.map(rows/2+1, cols/2+1:end) == 0)
+%             generate = false;
+%         end
+        if all(dataset.map(rows/2+1, cols/2+1:end) == 0) ...
+            && dataset.map(rows/2+1.1/cell_size+1, cols/2+1) == 0
             generate = false;
         end
         % END CODE
