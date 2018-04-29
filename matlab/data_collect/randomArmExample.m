@@ -3,10 +3,11 @@
 % @date Nov 23, 2015
 
 close all
-clearvars -except seed
+clear all
+% clearvars -except seed
 
 if ~exist('seed')
-    seed = 123;
+    seed = 9;
 end
 
 import gtsam.*
@@ -31,12 +32,9 @@ while iter < 40000
         [dataset, goal] = generateRandom2D(map_dim);
         rows = dataset.rows;
         cols = dataset.cols;
-        cell_size = dataset.cell_size;
-        % YOUR CODE HERE
         if all(dataset.map(rows/2+1, cols/2+1:end) == 0)
             generate = false;
         end
-        % END CODE
     end
     origin_point2 = Point2(dataset.origin_x, dataset.origin_y);
 
