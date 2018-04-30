@@ -63,7 +63,7 @@ mkdir(data_path);
 
 %% Generate arm model
 
-    arm = generateArm('SimpleThreeLinksArm');
+    arm = generateArm('SimpleThreeLinksArmLearning');
 
 %% Main loop
     
