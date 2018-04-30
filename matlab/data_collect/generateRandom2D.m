@@ -10,21 +10,34 @@ dataset.origin_x = -rows*dataset.cell_size/2;
 dataset.origin_y = -cols*dataset.cell_size/2;
 
 dataset.map = zeros(dataset.rows, dataset.cols);
-good_rect = false;
 
-while ~good_rect
-    rect1 = random_rect(dataset.rows, dataset.cols, 1, 1);
-    rect2 = random_rect(dataset.rows, dataset.cols, 1, 1);
-     good_rect = check_arm_collision(start_pts, rect1, dataset) ...
-             && check_arm_collision(start_pts, rect2, dataset) ...
-             && check_arm_collision(goal_pts, rect1, dataset) ...
-             && check_arm_collision(goal_pts, rect2, dataset) ...
-             && check_bad_rect(dataset.rows, dataset.cols, rect1, rect2);
+n_rects = 8;
+rects = cell(n_rects);
+while true
+    % Generate obstacles that don't overlap with start and end configurations
+    for i = 1:n_rects
+        while true
+            rects{i} = random_rect(dataset.rows, dataset.cols, 1, 1);
+            if (check_arm_collision(start_pts, rects{i}, dataset) ...
+                && check_arm_collision(goal_pts, rects{i}, dataset)), break; end
+        end
+    end
+    
+    % Check that obstacles don't overlap
+    good_rect = true;
+    for i = 1:n_rects
+        for j = (i+1):n_rects
+            good_rect = good_rect && ...
+                check_bad_rect(dataset.rows, dataset.cols, rects{i}, rects{j});
+        end
+    end
+    if good_rect, break; end
 end
 
-
-dataset.map(rect1(1):rect1(2), rect1(3):rect1(4)) = 1;
-dataset.map(rect2(1):rect2(2), rect2(3):rect2(4)) = 1;
+for i = 1:n_rects
+    rect = rects{i};
+    dataset.map(rect(1):rect(2), rect(3):rect(4)) = 1;
+end
 
 end
 
@@ -32,8 +45,8 @@ function rect = random_rect(rows, cols, start_x, start_y)
 
 % Returns [x_bot, x_top, y_left, y_right]
 
-height = randi([20, floor(rows/2)]);
-width = randi([20, floor(cols/2)]);
+height = randi([10, 50]);
+width = randi([10, 50]);
 % height = randi([20, floor(rows/3)]);
 % width = randi([20, floor(cols/3)]);
 x_bot = randi([start_x, rows-height]);
