@@ -1,3 +1,4 @@
+% copy to /usr/local/gtsam_toolbox/+gpmp2/generateArm.m
 function arm_model = generateArm(arm_str, base_pose)
 %GENERATEARM Generate arm model
 %
@@ -47,7 +48,40 @@ if strcmp(arm_str, 'SimpleTwoLinksArm')
 % 3 link arm
 elseif strcmp(arm_str, 'SimpleThreeLinksArm')
     % abstract arm
-%     a = [0.5, 0.5, 0.5]';
+    a = [0.5, 0.5, 0.5]';
+    d = [0, 0, 0]';
+    alpha = [0, 0, 0]';
+    arm = Arm(3, a, alpha, d);
+    
+    % physical arm
+    spheres_data = [...
+        0  -0.5  0.0  0.0  0.01
+        0  -0.4  0.0  0.0  0.01
+        0  -0.3  0.0  0.0  0.01
+        0  -0.2  0.0  0.0  0.01
+        0  -0.1  0.0  0.0  0.01
+        1  -0.5  0.0  0.0  0.01
+        1  -0.4  0.0  0.0  0.01
+        1  -0.3  0.0  0.0  0.01
+        1  -0.2  0.0  0.0  0.01
+        1  -0.1  0.0  0.0  0.01
+        2  -0.5  0.0  0.0  0.01
+        2  -0.4  0.0  0.0  0.01
+        2  -0.3  0.0  0.0  0.01
+        2  -0.2  0.0  0.0  0.01
+        2  -0.1  0.0  0.0  0.01
+        2  0.0  0.0  0.0  0.01];
+    nr_body = size(spheres_data, 1);
+    sphere_vec = BodySphereVector;
+    for i=1:nr_body
+        sphere_vec.push_back(BodySphere(spheres_data(i,1), spheres_data(i,5), ...
+            Point3(spheres_data(i,2:4)')));
+    end
+    arm_model = ArmModel(arm, sphere_vec);
+
+% 3 link arm for learning to reach
+elseif strcmp(arm_str, 'SimpleThreeLinksArmLearning')
+    % abstract arm
     a = [0.4, 0.4, 0.4]';
     d = [0, 0, 0]';
     alpha = [0, 0, 0]';
@@ -75,6 +109,7 @@ elseif strcmp(arm_str, 'SimpleThreeLinksArm')
             Point3(spheres_data(i,2:4)')));
     end
     arm_model = ArmModel(arm, sphere_vec);
+
 
 % 7 link WAM arm
 elseif strcmp(arm_str, 'WAMArm')
