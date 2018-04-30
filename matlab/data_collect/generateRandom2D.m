@@ -11,18 +11,6 @@ dataset.origin_y = -cols*dataset.cell_size/2;
 
 dataset.map = zeros(dataset.rows, dataset.cols);
 
-while ~good_rect
-    rect1 = random_rect(dataset.rows, dataset.cols, 1, 1);
-    rect2 = random_rect(dataset.rows, dataset.cols, 1, 1);
-     good_rect = check_origin_collision(rect1, dataset) ...
-             && check_origin_collision(rect2, dataset) ...
-             && check_arm_collision(start_pts, rect1, dataset) ...
-             && check_arm_collision(start_pts, rect2, dataset) ...
-             && check_arm_collision(goal_pts, rect1, dataset) ...
-             && check_arm_collision(goal_pts, rect2, dataset) ...
-             && check_bad_rect(dataset.rows, dataset.cols, rect1, rect2);
-end
-
 n_rects = 8;
 rects = cell(n_rects);
 while true
@@ -30,9 +18,10 @@ while true
     for i = 1:n_rects
         while true
             rects{i} = random_rect(dataset.rows, dataset.cols, 1, 1);
-            if (check_origin_collision(rects{i}, dataset) ...
+            okay = check_origin_collision(rects{i}, dataset) ...
                 && check_arm_collision(start_pts, rects{i}, dataset) ...
-                && check_arm_collision(goal_pts, rects{i}, dataset)), break; end
+                && check_arm_collision(goal_pts, rects{i}, dataset);
+            if okay, break; end
         end
     end
     
